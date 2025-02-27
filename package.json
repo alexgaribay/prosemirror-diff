@@ -1,27 +1,28 @@
 {
-  "name": "@hamflx/prosemirror-diff",
-  "version": "0.0.8",
+  "name": "@alexgaribay/prosemirror-diff",
+  "version": "0.0.10",
   "description": "PromiseMirror state diff",
-  "main": "lib/index.cjs.js",
-  "module": "lib/index.esm.js",
-  "umd": "lib/index.umd.js",
-  "files": [
-    "src",
-    "lib"
-  ],
-  "browserslist": "> 0.15%, not dead, not android > 0, not and_ff > 0, not and_chr > 0, not and_uc > 0, not samsung > 0, not ios > 0, not opera > 0, not op_mini 1",
+  "type": "module",
+  "main": "dist/prosemirror-diff.js",
+  "module": "dist/prosemirror-diff.js",
+  "types": "dist/prosemirror-diff.d.ts",
   "dependencies": {
     "diff-match-patch": "^1.0.5",
     "prosemirror-model": "^1.18.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.18.9",
-    "@babel/preset-env": "^7.18.9",
-    "@rollup/plugin-babel": "^5.3.1",
-    "@rollup/plugin-commonjs": "^22.0.1",
-    "core-js": "^3.24.0",
-    "rollup": "^2.77.0",
-    "rollup-plugin-sourcemaps": "^0.6.3"
+    "@rollup/plugin-typescript": "^8.5.0",
+    "@typescript-eslint/eslint-plugin": "^5.37.0",
+    "@typescript-eslint/parser": "^5.37.0",
+    "esbuild": "^0.15.7",
+    "eslint": "^8.23.1",
+    "jsdom": "^20.0.0",
+    "rollup": "^2.79.0",
+    "rollup-plugin-dts": "^4.2.2",
+    "rollup-plugin-esbuild": "^4.10.1",
+    "source-map-support": "^0.5.16",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.3"
   },
   "scripts": {
     "build": "rollup -c rollup.config.js",

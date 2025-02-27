@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "allowSyntheticDefaultImports": true,
+        "declaration": true,
+        "esModuleInterop": true,
+        "lib": ["DOM", "ES2022"],
+        "noEmit": true,
+        "module": "ESNext",
+        "moduleResolution": "Node",
+        "resolveJsonModule": true,
+        "rootDir": "./src",
+        "strict": true,
+        "sourceMap": true,
+        "target": "ES2022",
+        "useDefineForClassFields": true
+    },
+    "include": ["src/**/*"]
+}

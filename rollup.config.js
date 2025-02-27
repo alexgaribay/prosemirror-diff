@@ -1,41 +1,29 @@
-import path from 'path'
-import sourcemaps from 'rollup-plugin-sourcemaps'
-import commonjs from '@rollup/plugin-commonjs'
-import babel from '@rollup/plugin-babel'
+import esbuild from "rollup-plugin-esbuild";
+import dts from "rollup-plugin-dts";
 
-const name = '@hamflx/prosemirror-diff'
-const input = path.resolve(__dirname, 'src/index.js')
+/**
+ * @type {import('rollup').RollupOptions}
+ */
+const config = [
+    {
+        input: "src/index.js",
+        output: {
+            file: "dist/prosemirror-diff.js",
+        },
+        plugins: [esbuild()],
+        external: [
+            "diff-match-patch",
+            "prosemirror-model",
+        ],
+    },
+    {
+        input: "src/index.js",
+        output: {
+            file: "dist/prosemirror-diff.d.ts",
+            format: "es",
+        },
+        plugins: [dts()],
+    },
+];
 
-export default {
-  input,
-  external: id => /^(diff-match-patch|prosemirror-model)/.test(id),
-  output: [
-    {
-      name,
-      file: path.resolve(__dirname, 'lib/index.umd.js'),
-      format: 'umd',
-      sourcemap: true,
-    },
-    {
-      name,
-      file: path.resolve(__dirname, 'lib/index.cjs.js'),
-      format: 'cjs',
-      sourcemap: true,
-      exports: 'auto',
-    },
-    {
-      name,
-      file: path.resolve(__dirname, 'lib/index.esm.js'),
-      format: 'es',
-      sourcemap: true,
-    },
-  ],
-  plugins: [
-    sourcemaps(),
-    commonjs(),
-    babel({
-      babelHelpers: 'bundled',
-      exclude: 'node_modules/**',
-    }),
-  ]
-}
+export default config;
