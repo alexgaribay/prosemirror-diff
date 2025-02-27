@@ -18,7 +18,6 @@ const patchDocumentNode = (schema, oldNode, newNode) => {
   const minChildLen = Math.min(oldChildLen, newChildLen);
   let left = 0;
   let right = 0;
-  console.log("==> searching same left");
   for (; left < minChildLen; left++) {
     const oldChild = oldChildren[left];
     const newChild = newChildren[left];
@@ -27,7 +26,6 @@ const patchDocumentNode = (schema, oldNode, newNode) => {
     }
     finalLeftChildren.push(...ensureArray(oldChild));
   }
-  console.log("==> searching same right");
   for (; right + left + 1 < minChildLen; right++) {
     const oldChild = oldChildren[oldChildLen - right - 1];
     const newChild = newChildren[newChildLen - right - 1];
@@ -36,38 +34,29 @@ const patchDocumentNode = (schema, oldNode, newNode) => {
     }
     finalRightChildren.unshift(...ensureArray(oldChild));
   }
-  console.log(`==> eq left:${left}, right:${right}`, [...finalLeftChildren], [...finalRightChildren]);
   const diffOldChildren = oldChildren.slice(left, oldChildLen - right);
   const diffNewChildren = newChildren.slice(left, newChildLen - right);
-  console.log("==> diff children", diffOldChildren.length, diffNewChildren.length);
   if (diffOldChildren.length && diffNewChildren.length) {
     const matchedNodes = matchNodes(schema, diffOldChildren, diffNewChildren).sort((a, b) => b.count - a.count);
     const bestMatch = matchedNodes[0];
     if (bestMatch) {
-      console.log("==> bestMatch", bestMatch);
       const { oldStartIndex, newStartIndex, oldEndIndex, newEndIndex } = bestMatch;
       const oldBeforeMatchChildren = diffOldChildren.slice(0, oldStartIndex);
       const newBeforeMatchChildren = diffNewChildren.slice(0, newStartIndex);
-      console.log("==> before match", oldBeforeMatchChildren.length, newBeforeMatchChildren.length, oldBeforeMatchChildren, newBeforeMatchChildren);
       finalLeftChildren.push(...patchRemainNodes(schema, oldBeforeMatchChildren, newBeforeMatchChildren));
       finalLeftChildren.push(...diffOldChildren.slice(oldStartIndex, oldEndIndex));
-      console.log("==> match", oldEndIndex - oldStartIndex);
       const oldAfterMatchChildren = diffOldChildren.slice(oldEndIndex);
       const newAfterMatchChildren = diffNewChildren.slice(newEndIndex);
-      console.log("==> after match", oldAfterMatchChildren.length, newAfterMatchChildren.length);
       finalRightChildren.unshift(...patchRemainNodes(schema, oldAfterMatchChildren, newAfterMatchChildren));
     } else {
-      console.log("==> no best match found");
       finalLeftChildren.push(...patchRemainNodes(schema, diffOldChildren, diffNewChildren));
     }
-    console.log("==> matchedNodes", matchedNodes);
   } else {
     finalLeftChildren.push(...patchRemainNodes(schema, diffOldChildren, diffNewChildren));
   }
   return createNewNode(oldNode, [...finalLeftChildren, ...finalRightChildren]);
 };
 const matchNodes = (schema, oldChildren, newChildren) => {
-  console.log("==> matchNodes", oldChildren, newChildren);
   const matches = [];
   for (let oldStartIndex = 0; oldStartIndex < oldChildren.length; oldStartIndex++) {
     const oldStartNode = oldChildren[oldStartIndex];
@@ -81,7 +70,6 @@ const matchNodes = (schema, oldChildren, newChildren) => {
           break;
         }
       }
-      console.log("==> match", oldStartIndex, oldEndIndex, newStartIndex, newEndIndex);
       matches.push({ oldStartIndex, newStartIndex, oldEndIndex, newEndIndex, count: newEndIndex - newStartIndex });
     }
   }
