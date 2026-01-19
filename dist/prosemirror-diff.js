@@ -7,7 +7,89 @@ const DiffType = {
   Inserted: 1
 };
 
-const patchDocumentNode = (schema, oldNode, newNode) => {
+const tokenizeText = (text) => {
+  const tokens = [];
+  const regex = /(\w+|\s+|[^\w\s]+)/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    tokens.push({
+      text: match[0],
+      start: match.index,
+      end: match.index + match[0].length
+    });
+  }
+  return tokens;
+};
+const tokensToChars = (tokens1, tokens2) => {
+  const tokenMap = /* @__PURE__ */ new Map();
+  const tokenArray = [];
+  let charCode = 0;
+  const encode = (tokens) => {
+    return tokens.map((token) => {
+      if (!tokenMap.has(token.text)) {
+        tokenMap.set(token.text, charCode);
+        tokenArray.push(token.text);
+        charCode++;
+      }
+      return String.fromCharCode(tokenMap.get(token.text));
+    }).join("");
+  };
+  return {
+    chars1: encode(tokens1),
+    chars2: encode(tokens2),
+    tokenArray
+  };
+};
+const diffWordsWithDetail = (oldText, newText) => {
+  const dmp = new diff_match_patch();
+  const oldTokens = tokenizeText(oldText);
+  const newTokens = tokenizeText(newText);
+  if (oldTokens.length === 0 && newTokens.length === 0) {
+    return [];
+  }
+  if (oldTokens.length === 0) {
+    return [{ type: DiffType.Inserted, text: newText, level: "word" }];
+  }
+  if (newTokens.length === 0) {
+    return [{ type: DiffType.Deleted, text: oldText, level: "word" }];
+  }
+  const { chars1, chars2, tokenArray } = tokensToChars(oldTokens, newTokens);
+  const wordDiff = dmp.diff_main(chars1, chars2);
+  const result = [];
+  let i = 0;
+  while (i < wordDiff.length) {
+    const [type, chars] = wordDiff[i];
+    if (type === DiffType.Unchanged) {
+      for (const char of chars) {
+        result.push({ type: DiffType.Unchanged, text: tokenArray[char.charCodeAt(0)], level: "word" });
+      }
+      i++;
+    } else if (type === DiffType.Deleted && i + 1 < wordDiff.length && wordDiff[i + 1][0] === DiffType.Inserted) {
+      const deletedText = [...chars].map((c) => tokenArray[c.charCodeAt(0)]).join("");
+      const insertedText = [...wordDiff[i + 1][1]].map((c) => tokenArray[c.charCodeAt(0)]).join("");
+      const charDiff = dmp.diff_main(deletedText, insertedText);
+      for (const [charType, charText] of charDiff) {
+        result.push({ type: charType, text: charText, level: "char" });
+      }
+      i += 2;
+    } else {
+      const text = [...chars].map((c) => tokenArray[c.charCodeAt(0)]).join("");
+      result.push({ type, text, level: "word" });
+      i++;
+    }
+  }
+  const merged = [];
+  for (const segment of result) {
+    const last = merged[merged.length - 1];
+    if (last && last.type === segment.type && last.level === segment.level) {
+      last.text += segment.text;
+    } else {
+      merged.push({ ...segment });
+    }
+  }
+  return merged;
+};
+const patchDocumentNode = (schema, oldNode, newNode, options = {}) => {
   assertNodeTypeEqual(oldNode, newNode);
   const finalLeftChildren = [];
   const finalRightChildren = [];
@@ -43,16 +125,16 @@ const patchDocumentNode = (schema, oldNode, newNode) => {
       const { oldStartIndex, newStartIndex, oldEndIndex, newEndIndex } = bestMatch;
       const oldBeforeMatchChildren = diffOldChildren.slice(0, oldStartIndex);
       const newBeforeMatchChildren = diffNewChildren.slice(0, newStartIndex);
-      finalLeftChildren.push(...patchRemainNodes(schema, oldBeforeMatchChildren, newBeforeMatchChildren));
+      finalLeftChildren.push(...patchRemainNodes(schema, oldBeforeMatchChildren, newBeforeMatchChildren, options));
       finalLeftChildren.push(...diffOldChildren.slice(oldStartIndex, oldEndIndex));
       const oldAfterMatchChildren = diffOldChildren.slice(oldEndIndex);
       const newAfterMatchChildren = diffNewChildren.slice(newEndIndex);
-      finalRightChildren.unshift(...patchRemainNodes(schema, oldAfterMatchChildren, newAfterMatchChildren));
+      finalRightChildren.unshift(...patchRemainNodes(schema, oldAfterMatchChildren, newAfterMatchChildren, options));
     } else {
-      finalLeftChildren.push(...patchRemainNodes(schema, diffOldChildren, diffNewChildren));
+      finalLeftChildren.push(...patchRemainNodes(schema, diffOldChildren, diffNewChildren, options));
     }
   } else {
-    finalLeftChildren.push(...patchRemainNodes(schema, diffOldChildren, diffNewChildren));
+    finalLeftChildren.push(...patchRemainNodes(schema, diffOldChildren, diffNewChildren, options));
   }
   return createNewNode(oldNode, [...finalLeftChildren, ...finalRightChildren]);
 };
@@ -83,7 +165,7 @@ const findMatchNode = (children, node, startIndex = 0) => {
   }
   return -1;
 };
-const patchRemainNodes = (schema, oldChildren, newChildren) => {
+const patchRemainNodes = (schema, oldChildren, newChildren, options = {}) => {
   const finalLeftChildren = [];
   const finalRightChildren = [];
   const oldChildLen = oldChildren.length;
@@ -98,7 +180,7 @@ const patchRemainNodes = (schema, oldChildren, newChildren) => {
     let updateLeft = !isTextNode(leftOldNode) && matchNodeType(leftOldNode, leftNewNode);
     let updateRight = !isTextNode(rightOldNode) && matchNodeType(rightOldNode, rightNewNode);
     if (Array.isArray(leftOldNode) && Array.isArray(leftNewNode)) {
-      finalLeftChildren.push(...patchTextNodes(schema, leftOldNode, leftNewNode));
+      finalLeftChildren.push(...patchTextNodes(schema, leftOldNode, leftNewNode, options));
       left += 1;
       continue;
     }
@@ -108,10 +190,10 @@ const patchRemainNodes = (schema, oldChildren, newChildren) => {
       }
     }
     if (updateLeft) {
-      finalLeftChildren.push(patchDocumentNode(schema, leftOldNode, leftNewNode));
+      finalLeftChildren.push(patchDocumentNode(schema, leftOldNode, leftNewNode, options));
       left += 1;
     } else if (updateRight) {
-      finalRightChildren.unshift(patchDocumentNode(schema, rightOldNode, rightNewNode));
+      finalRightChildren.unshift(patchDocumentNode(schema, rightOldNode, rightNewNode, options));
       right += 1;
     } else {
       finalLeftChildren.push(createDiffNode(schema, leftOldNode, DiffType.Deleted));
@@ -129,16 +211,19 @@ const patchRemainNodes = (schema, oldChildren, newChildren) => {
   }
   return [...finalLeftChildren, ...finalRightChildren];
 };
-const patchTextNodes = (schema, oldNode, newNode) => {
-  const dmp = new diff_match_patch();
+const patchTextNodes = (schema, oldNode, newNode, options = {}) => {
+  const { level = "char" } = options;
   const oldText = oldNode.map((n) => getNodeText(n)).join("");
   const newText = newNode.map((n) => getNodeText(n)).join("");
-  const diff = dmp.diff_main(oldText, newText);
+  const diff = level === "word" ? diffWordsWithDetail(oldText, newText) : new diff_match_patch().diff_main(oldText, newText);
   let oldLen = 0;
   let newLen = 0;
   const res = diff.map((d) => {
-    const [type, content] = [d[0], d[1]];
-    const node = createTextNode(schema, content, type !== DiffType.Unchanged ? createDiffMark(schema, type) : []);
+    const type = d.type !== void 0 ? d.type : d[0];
+    const content = d.text !== void 0 ? d.text : d[1];
+    const level2 = d.level || "char";
+    const marks = type !== DiffType.Unchanged ? createDiffMark(schema, type, level2) : [];
+    const node = createTextNode(schema, content, marks);
     const oldFrom = oldLen;
     const oldTo = oldFrom + (type === DiffType.Inserted ? 0 : content.length);
     const newFrom = newLen;
@@ -311,22 +396,19 @@ function mapDocumentNode(node, mapper) {
   );
   return mapper(copy) || copy;
 }
-const createDiffMark = (schema, type) => {
-  if (type === DiffType.Inserted) {
-    return schema.mark("diffMark", { type });
-  }
-  if (type === DiffType.Deleted) {
-    return schema.mark("diffMark", { type });
+const createDiffMark = (schema, type, level = "char") => {
+  if (type === DiffType.Inserted || type === DiffType.Deleted) {
+    return schema.mark("diffMark", { type, level });
   }
   throw new Error("type is not valid");
 };
 const createTextNode = (schema, content, marks = []) => {
   return schema.text(content, marks);
 };
-const diffEditor = (schema, oldDoc, newDoc) => {
+const diffEditor = (schema, oldDoc, newDoc, options = {}) => {
   const oldNode = Node.fromJSON(schema, oldDoc);
   const newNode = Node.fromJSON(schema, newDoc);
-  return patchDocumentNode(schema, oldNode, newNode);
+  return patchDocumentNode(schema, oldNode, newNode, options);
 };
 
-export { DiffType, assertNodeTypeEqual, computeChildEqualityFactor, createDiffMark, createDiffNode, createNewNode, createTextNode, diffEditor, ensureArray, getNodeAttribute, getNodeAttributes, getNodeChildren, getNodeMarks, getNodeProperty, getNodeText, isNodeEqual, isTextNode, matchNodeType, normalizeNodeContent, patchDocumentNode, patchTextNodes };
+export { DiffType, assertNodeTypeEqual, computeChildEqualityFactor, createDiffMark, createDiffNode, createNewNode, createTextNode, diffEditor, diffWordsWithDetail, ensureArray, getNodeAttribute, getNodeAttributes, getNodeChildren, getNodeMarks, getNodeProperty, getNodeText, isNodeEqual, isTextNode, matchNodeType, normalizeNodeContent, patchDocumentNode, patchTextNodes, tokenizeText };

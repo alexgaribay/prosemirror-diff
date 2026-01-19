@@ -34,7 +34,7 @@ const reloadDiff = () => {
   const oldSavedState = getSavedJson('editor-data-old') || oldDocState
   const newSavedState = getSavedJson('editor-data-new') || newDocState
 
-  const docNode = diffEditor(editor.value.schema, oldSavedState, newSavedState)
+  const docNode = diffEditor(editor.value.schema, oldSavedState, newSavedState, { level: 'word' })
   window.oldDoc = oldSavedState
   window.newDoc = newSavedState
   console.log('==> oldSavedState', oldSavedState)
