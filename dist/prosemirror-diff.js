@@ -67,10 +67,8 @@ const diffWordsWithDetail = (oldText, newText) => {
     } else if (type === DiffType.Deleted && i + 1 < wordDiff.length && wordDiff[i + 1][0] === DiffType.Inserted) {
       const deletedText = [...chars].map((c) => tokenArray[c.charCodeAt(0)]).join("");
       const insertedText = [...wordDiff[i + 1][1]].map((c) => tokenArray[c.charCodeAt(0)]).join("");
-      const charDiff = dmp.diff_main(deletedText, insertedText);
-      for (const [charType, charText] of charDiff) {
-        result.push({ type: charType, text: charText, level: "char" });
-      }
+      result.push({ type: DiffType.Deleted, text: deletedText, level: "word" });
+      result.push({ type: DiffType.Inserted, text: insertedText, level: "word" });
       i += 2;
     } else {
       const text = [...chars].map((c) => tokenArray[c.charCodeAt(0)]).join("");

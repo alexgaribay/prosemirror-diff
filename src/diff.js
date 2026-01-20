@@ -95,14 +95,11 @@ export const diffWordsWithDetail = (oldText, newText) => {
       }
       i++
     } else if (type === DiffType.Deleted && i + 1 < wordDiff.length && wordDiff[i + 1][0] === DiffType.Inserted) {
-      // Adjacent delete + insert: do character-level diff between them
+      // Adjacent delete + insert: show deletions first, then insertions (no interleaving)
       const deletedText = [...chars].map(c => tokenArray[c.charCodeAt(0)]).join('')
       const insertedText = [...wordDiff[i + 1][1]].map(c => tokenArray[c.charCodeAt(0)]).join('')
-      const charDiff = dmp.diff_main(deletedText, insertedText)
-      // Mark these as 'char' level since they come from character-level diff within word boundaries
-      for (const [charType, charText] of charDiff) {
-        result.push({ type: charType, text: charText, level: 'char' })
-      }
+      result.push({ type: DiffType.Deleted, text: deletedText, level: 'word' })
+      result.push({ type: DiffType.Inserted, text: insertedText, level: 'word' })
       i += 2
     } else {
       // Orphan delete or insert: show whole token(s) as a unit (word-level change)
