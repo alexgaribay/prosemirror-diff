@@ -1,6 +1,6 @@
 {
   "name": "@alexgaribay/prosemirror-diff",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "PromiseMirror state diff",
   "type": "module",
   "main": "dist/prosemirror-diff.js",
